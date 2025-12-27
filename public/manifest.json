@@ -1,0 +1,12 @@
+{
+  "name": "디지털 액자",
+  "short_name": "액자",
+  "description": "디지털 액자 슬라이드쇼",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": []
+}
+

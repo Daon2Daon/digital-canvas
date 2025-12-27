@@ -1,0 +1,70 @@
+# Node modules (will be installed in container)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env*.local
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed in container)
+docs/
+*.md
+!README.md
+
+# Database data (managed by volume)
+prisma/*.db
+prisma/*.db-journal
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Uploaded images (managed by volume)
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Testing
+coverage/
+.nyc_output/
+test/
+tests/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.backup
+*.bak
+
+# TypeScript build output (will be built in container)
+dist/
+*.tsbuildinfo
+
+# Source maps (optional, can be included for debugging)
+*.map
+

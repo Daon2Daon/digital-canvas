@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- iOS 전체 화면 웹앱 모드 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="디지털 액자">
+    
+    <!-- Web App Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- iOS 아이콘 (선택사항 - 파일이 없으면 제거 가능) -->
+    <!--
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icon-152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png">
+    -->
+    
+    <title>디지털 액자</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, sans-serif;
+        }
+        
+        #slideshow {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            background-color: #000;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+        
+        .slide.active {
+            opacity: 1;
+            z-index: 2;
+        }
+        
+        .slide.fadeout {
+            opacity: 0;
+            z-index: 1;
+        }
+        
+        /* 로딩 화면 */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: table;
+            z-index: 9999;
+        }
+        
+        #loading-cell {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: center;
+        }
+        
+        #loading-text {
+            color: #fff;
+            font-size: 18px;
+        }
+        
+        /* 에러 화면 */
+        #error {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: none;
+            z-index: 10000;
+        }
+        
+        #error-cell {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: center;
+        }
+        
+        #error-text {
+            color: #ef4444;
+            font-size: 16px;
+            padding: 20px;
+        }
+        
+        /* 파일명 표시 */
+        #filename-display {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 8px;
+            z-index: 2000;
+            display: none;
+            max-width: 90%;
+            text-align: center;
+            word-break: break-word;
+            transition: opacity 0.3s ease-in-out;
+        }
+        
+        #filename-display.show {
+            display: block;
+            opacity: 1;
+        }
+        
+        #filename-display.hide {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- 로딩 화면 -->
+    <div id="loading">
+        <div id="loading-cell">
+            <div id="loading-text">로딩 중...</div>
+        </div>
+    </div>
+    
+    <!-- 에러 화면 -->
+    <div id="error" style="display: none;">
+        <div id="error-cell">
+            <div id="error-text">이미지를 불러올 수 없습니다.<br>잠시 후 다시 시도합니다.</div>
+        </div>
+    </div>
+    
+    <!-- 슬라이드쇼 -->
+    <div id="slideshow"></div>
+    
+    <!-- 파일명 표시 -->
+    <div id="filename-display"></div>
+    
+    <script>
+        /**
+         * 디지털 액자 슬라이드쇼
+         * 최신 JavaScript (ES6+)
+         */
+        (() => {
+            // 설정
+            const API_URL = window.location.origin;
+            const REFRESH_INTERVAL = 10 * 60 * 1000; // 10분마다 갱신
+            const RETRY_DELAY = 5000; // 5초 후 재시도
+            
+            // DOM 요소
+            const slideshow = document.getElementById('slideshow');
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const filenameDisplay = document.getElementById('filename-display');
+            
+            // 상태
+            let images = [];
+            let currentIndex = 0;
+            let slideDuration = 10000;
+            let transitionSpeed = 1000;
+            let displayMode = 'cover';
+            let timer = null;
+            let isPlaying = false;
+            let preloadedImages = new Set();
+            let showFileName = false;
+            let refreshIntervalId = null;
+            let cleanupTimeouts = [];
+            let wakeLock = null; // Wake Lock 객체
+            
+            /**
+             * 로그 출력
+             */
+            const log = (message) => {
+                console.log('[Slideshow]', message);
+            };
+            
+            /**
+             * 이미지 목록 가져오기
+             */
+            const fetchImages = async () => {
+                log('Fetching images...');
+                
+                try {
+                    const response = await fetch(`${API_URL}/api/viewer/images`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    log(`API response:`, data);
+                    
+                    if (data.success) {
+                        if (data.images && data.images.length > 0) {
+                            images = data.images;
+                            slideDuration = data.settings?.slideDuration || 10000;
+                            transitionSpeed = data.settings?.transitionSpeed || 1000;
+                            displayMode = data.settings?.displayMode || 'cover';
+                            
+                            log(`Loaded ${images.length} images (mode: ${displayMode})`);
+                            await initSlideshow();
+                        } else {
+                            log('No images found');
+                            showError('이미지가 없습니다.');
+                        }
+                    } else {
+                        log(`API error: ${data.error}`);
+                        showError(data.error || '이미지를 불러올 수 없습니다.');
+                    }
+                } catch (err) {
+                    log(`Error: ${err.message}`);
+                    showError('서버 연결 실패');
+                }
+            };
+            
+            /**
+             * 이미지 프리로드
+             */
+            const preloadImages = () => {
+                return new Promise((resolve) => {
+                    log('Preloading images...');
+                    let loadedCount = 0;
+                    const totalCount = images.length;
+                    const imageElements = []; // 메모리 관리를 위해 참조 저장
+                    
+                    if (totalCount === 0) {
+                        resolve();
+                        return;
+                    }
+                    
+                    images.forEach((img, index) => {
+                        const imageElement = new Image();
+                        imageElements.push(imageElement); // 참조 저장
+                        const url = img.url;
+                        
+                        imageElement.onload = () => {
+                            preloadedImages.add(url);
+                            loadedCount++;
+                            log(`Loaded ${loadedCount}/${totalCount}: ${img.originalName}`);
+                            
+                            if (loadedCount === totalCount) {
+                                log('All images preloaded');
+                                // 프리로드 완료 후 참조 해제 (브라우저가 필요시 캐시 유지)
+                                imageElements.length = 0;
+                                resolve();
+                            }
+                        };
+                        
+                        imageElement.onerror = () => {
+                            log(`Failed to load: ${url}`);
+                            loadedCount++;
+                            
+                            if (loadedCount === totalCount) {
+                                imageElements.length = 0;
+                                resolve();
+                            }
+                        };
+                        
+                        imageElement.src = url;
+                    });
+                });
+            };
+            
+            /**
+             * 슬라이드에 transition 속성 적용
+             */
+            const applyTransitionSpeed = (slide) => {
+                const transitionSeconds = (transitionSpeed / 1000).toFixed(3);
+                slide.style.transition = `opacity ${transitionSeconds}s ease-in-out`;
+            };
+            
+            /**
+             * 슬라이드쇼 초기화
+             */
+            const initSlideshow = async () => {
+                // 기존 슬라이드쇼 정지 및 정리
+                stopSlideshow();
+                
+                // 기존 슬라이드 제거
+                slideshow.innerHTML = '';
+                preloadedImages.clear();
+                
+                // 먼저 모든 이미지를 프리로드
+                await preloadImages();
+                
+                // 프리로드 완료 후 슬라이드 생성
+                images.forEach((img, i) => {
+                    const slide = document.createElement('div');
+                    slide.className = i === 0 ? 'slide active' : 'slide';
+                    
+                    // 배경 이미지로 설정
+                    slide.style.backgroundImage = `url(${img.url})`;
+                    slide.style.backgroundSize = displayMode;
+                    
+                    // 전환 속도 적용
+                    applyTransitionSpeed(slide);
+                    
+                    // 데이터 속성 저장
+                    slide.setAttribute('data-index', i.toString());
+                    slide.setAttribute('data-name', img.originalName);
+                    
+                    slideshow.appendChild(slide);
+                });
+                
+                // 로딩 화면 숨기기
+                loading.style.display = 'none';
+                error.style.display = 'none';
+                
+                // 슬라이드쇼 시작
+                startSlideshow();
+                
+                log('Slideshow initialized');
+            };
+            
+            /**
+             * 슬라이드쇼 시작
+             */
+            const startSlideshow = () => {
+                if (isPlaying) {
+                    return;
+                }
+                
+                if (images.length <= 1) {
+                    log(`Only ${images.length} image, no transition`);
+                    return;
+                }
+                
+                isPlaying = true;
+                scheduleNext();
+                
+                log('Slideshow started');
+            };
+            
+            /**
+             * 다음 슬라이드 예약
+             */
+            const scheduleNext = () => {
+                if (timer) {
+                    clearTimeout(timer);
+                }
+                
+                timer = setTimeout(() => {
+                    nextSlide();
+                    scheduleNext();
+                }, slideDuration);
+            };
+            
+            /**
+             * 슬라이드 생성
+             */
+            const createSlide = (index) => {
+                const slide = document.createElement('div');
+                slide.className = 'slide';
+                slide.style.backgroundImage = `url(${images[index].url})`;
+                slide.style.backgroundSize = displayMode;
+                
+                applyTransitionSpeed(slide);
+                
+                slide.setAttribute('data-index', index.toString());
+                slide.setAttribute('data-name', images[index].originalName);
+                return slide;
+            };
+            
+            /**
+             * 다음 슬라이드로 전환
+             */
+            const nextSlide = () => {
+                const slides = slideshow.getElementsByClassName('slide');
+                if (slides.length === 0) {
+                    return;
+                }
+                
+                // 다음 인덱스 계산
+                const nextIndex = (currentIndex + 1) % images.length;
+                
+                // 현재 슬라이드 참조 저장
+                const currentSlide = slides[currentIndex];
+                
+                // 현재 슬라이드를 fadeout으로 변경
+                currentSlide.className = 'slide fadeout';
+                currentSlide.style.zIndex = '1';
+                
+                // 다음 슬라이드가 DOM에 있는지 확인
+                let nextSlideElement = null;
+                for (let i = 0; i < slides.length; i++) {
+                    const slideIndex = parseInt(slides[i].getAttribute('data-index'), 10);
+                    if (slideIndex === nextIndex) {
+                        nextSlideElement = slides[i];
+                        break;
+                    }
+                }
+                
+                // 다음 슬라이드가 없으면 생성
+                if (!nextSlideElement) {
+                    nextSlideElement = createSlide(nextIndex);
+                    slideshow.appendChild(nextSlideElement);
+                    log(`Created slide ${nextIndex + 1}`);
+                }
+                
+                // 다음 슬라이드를 active로 설정
+                nextSlideElement.className = 'slide active';
+                nextSlideElement.style.zIndex = '2';
+                
+                // 인덱스 업데이트
+                currentIndex = nextIndex;
+                
+                // 파일명이 표시 중이면 업데이트
+                if (showFileName) {
+                    const fileName = getCurrentFileName();
+                    if (fileName) {
+                        filenameDisplay.textContent = fileName;
+                    }
+                }
+                
+                // transition 완료 후 fadeout된 슬라이드 제거
+                const cleanupTimeout = setTimeout(() => {
+                    if (currentSlide && !currentSlide.className.includes('active')) {
+                        currentSlide.style.backgroundImage = '';
+                        if (currentSlide.parentNode) {
+                            currentSlide.parentNode.removeChild(currentSlide);
+                            log(`Removed fadeout slide (index: ${currentSlide.getAttribute('data-index')})`);
+                        }
+                    }
+                    // cleanup 배열에서 제거
+                    const index = cleanupTimeouts.indexOf(cleanupTimeout);
+                    if (index > -1) {
+                        cleanupTimeouts.splice(index, 1);
+                    }
+                }, transitionSpeed);
+                cleanupTimeouts.push(cleanupTimeout);
+                
+                log(`Slide ${currentIndex + 1} / ${images.length}`);
+            };
+            
+            /**
+             * 슬라이드쇼 정지
+             */
+            const stopSlideshow = () => {
+                if (timer) {
+                    clearTimeout(timer);
+                    timer = null;
+                }
+                // cleanup 타이머들 모두 정리
+                cleanupTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+                cleanupTimeouts = [];
+                isPlaying = false;
+                log('Slideshow stopped');
+            };
+            
+            /**
+             * 에러 표시
+             */
+            const showError = (message) => {
+                loading.style.display = 'none';
+                error.style.display = 'table';
+                document.getElementById('error-text').innerHTML = `${message}<br>잠시 후 다시 시도합니다.`;
+                
+                // 5초 후 재시도
+                setTimeout(() => {
+                    error.style.display = 'none';
+                    loading.style.display = 'table';
+                    fetchImages();
+                }, RETRY_DELAY);
+            };
+            
+            /**
+             * 주기적으로 이미지 목록 갱신
+             */
+            const startRefreshTimer = () => {
+                // 기존 타이머가 있으면 정리
+                if (refreshIntervalId) {
+                    clearInterval(refreshIntervalId);
+                }
+                refreshIntervalId = setInterval(() => {
+                    log('Refreshing images...');
+                    stopSlideshow();
+                    fetchImages();
+                }, REFRESH_INTERVAL);
+            };
+            
+            /**
+             * 현재 재생 중인 파일명 가져오기
+             */
+            const getCurrentFileName = () => {
+                if (images && images.length > 0 && currentIndex >= 0 && currentIndex < images.length) {
+                    return images[currentIndex].originalName || '';
+                }
+                return '';
+            };
+            
+            /**
+             * 파일명 표시/숨김 토글
+             */
+            const toggleFileName = () => {
+                showFileName = !showFileName;
+                
+                if (showFileName) {
+                    const fileName = getCurrentFileName();
+                    if (fileName) {
+                        filenameDisplay.textContent = fileName;
+                        filenameDisplay.style.display = 'block';
+                        setTimeout(() => {
+                            filenameDisplay.className = 'show';
+                        }, 10);
+                    }
+                } else {
+                    filenameDisplay.className = 'hide';
+                    setTimeout(() => {
+                        if (!showFileName) {
+                            filenameDisplay.style.display = 'none';
+                        }
+                    }, 300);
+                }
+            };
+            
+            /**
+             * 페이지 가시성 변경 처리
+             */
+            const handleVisibilityChange = async () => {
+                if (document.hidden || document.webkitHidden) {
+                    log('Page hidden');
+                    stopSlideshow();
+                    // 페이지가 숨겨지면 Wake Lock 해제 (배터리 절약)
+                    await releaseWakeLock();
+                } else {
+                    log('Page visible');
+                    if (images.length > 1) {
+                        startSlideshow();
+                    }
+                    // 전체 화면 상태이고 페이지가 다시 보이면 Wake Lock 재요청
+                    const isFullscreen = !!(
+                        document.fullscreenElement ||
+                        document.webkitFullscreenElement ||
+                        document.msFullscreenElement ||
+                        document.mozFullScreenElement
+                    );
+                    if (isFullscreen) {
+                        await requestWakeLock();
+                    }
+                }
+            };
+            
+            // 가시성 변경 이벤트 리스너
+            if (typeof document.hidden !== 'undefined') {
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+            } else if (typeof document.webkitHidden !== 'undefined') {
+                document.addEventListener('webkitvisibilitychange', handleVisibilityChange);
+            }
+            
+            /**
+             * Wake Lock 활성화
+             */
+            const requestWakeLock = async () => {
+                try {
+                    if ('wakeLock' in navigator) {
+                        wakeLock = await navigator.wakeLock.request('screen');
+                        log('Wake Lock activated');
+                        
+                        // Wake Lock이 해제될 때 (예: 화면 잠금 등)
+                        wakeLock.addEventListener('release', () => {
+                            log('Wake Lock released');
+                        });
+                    }
+                } catch (error) {
+                    // Wake Lock API가 지원되지 않거나 권한이 거부된 경우
+                    log(`Wake Lock error: ${error.message}`);
+                }
+            };
+            
+            /**
+             * Wake Lock 해제
+             */
+            const releaseWakeLock = async () => {
+                try {
+                    if (wakeLock && 'release' in wakeLock) {
+                        await wakeLock.release();
+                        wakeLock = null;
+                        log('Wake Lock released');
+                    }
+                } catch (error) {
+                    log(`Wake Lock release error: ${error.message}`);
+                }
+            };
+            
+            /**
+             * 전체 화면 토글
+             */
+            const toggleFullscreen = async () => {
+                try {
+                    const doc = document;
+                    const docEl = document.documentElement;
+                    
+                    const isCurrentlyFullscreen = !!(
+                        doc.fullscreenElement ||
+                        doc.webkitFullscreenElement ||
+                        doc.msFullscreenElement ||
+                        doc.mozFullScreenElement
+                    );
+                    
+                    if (!isCurrentlyFullscreen) {
+                        // 전체 화면 진입
+                        if (docEl.requestFullscreen) {
+                            await docEl.requestFullscreen();
+                        } else if (docEl.webkitRequestFullscreen) {
+                            await docEl.webkitRequestFullscreen();
+                        } else if (docEl.msRequestFullscreen) {
+                            await docEl.msRequestFullscreen();
+                        } else if (docEl.mozRequestFullScreen) {
+                            await docEl.mozRequestFullScreen();
+                        }
+                        log('Entered fullscreen');
+                        
+                        // 전체 화면 진입 시 Wake Lock 활성화
+                        await requestWakeLock();
+                    } else {
+                        // Wake Lock 해제
+                        await releaseWakeLock();
+                        
+                        // 전체 화면 종료
+                        if (doc.exitFullscreen) {
+                            await doc.exitFullscreen();
+                        } else if (doc.webkitExitFullscreen) {
+                            await doc.webkitExitFullscreen();
+                        } else if (doc.msExitFullscreen) {
+                            await doc.msExitFullscreen();
+                        } else if (doc.mozCancelFullScreen) {
+                            await doc.mozCancelFullScreen();
+                        }
+                        log('Exited fullscreen');
+                    }
+                } catch (error) {
+                    log(`Fullscreen error: ${error}`);
+                }
+            };
+            
+            // 클릭 이벤트 처리 (파일명 토글)
+            let clickTimer = null;
+            
+            slideshow.addEventListener('click', (e) => {
+                // 터치 이벤트가 아닌 경우만 처리 (데스크톱)
+                if (!('ontouchstart' in window)) {
+                    // 더블클릭 감지 방지를 위한 지연
+                    clearTimeout(clickTimer);
+                    clickTimer = setTimeout(() => {
+                        toggleFileName();
+                    }, 250); // 250ms 내에 더블클릭이 없으면 파일명 토글
+                }
+            });
+            
+            // 더블 클릭 이벤트 (전체 화면 토글 - 데스크톱)
+            slideshow.addEventListener('dblclick', (e) => {
+                if (!('ontouchstart' in window)) {
+                    e.preventDefault();
+                    clearTimeout(clickTimer); // 단일 클릭 타이머 취소
+                    toggleFullscreen();
+                }
+            });
+            
+            // F11 키로 전체 화면 토글
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'F11') {
+                    e.preventDefault();
+                    toggleFullscreen();
+                } else if (e.key === 'Escape') {
+                    // ESC 키로 전체 화면 종료 (브라우저 기본 동작이지만 명시적으로 처리)
+                    const isFullscreen = !!(
+                        document.fullscreenElement ||
+                        document.webkitFullscreenElement ||
+                        document.msFullscreenElement ||
+                        document.mozFullScreenElement
+                    );
+                    if (isFullscreen) {
+                        toggleFullscreen();
+                    }
+                }
+            });
+            
+            // 터치 이벤트 처리 (모바일)
+            let lastTapTime = 0;
+            let touchTimer = null;
+            
+            slideshow.addEventListener('touchend', (e) => {
+                const currentTime = new Date().getTime();
+                const tapLength = currentTime - lastTapTime;
+                
+                if (tapLength < 300 && tapLength > 0) {
+                    // 더블탭 감지 (300ms 이내)
+                    e.preventDefault();
+                    clearTimeout(touchTimer);
+                    toggleFullscreen();
+                } else {
+                    // 단일 탭: 파일명 토글
+                    clearTimeout(touchTimer);
+                    touchTimer = setTimeout(() => {
+                        toggleFileName();
+                    }, 300); // 더블탭이 아닌 경우 파일명 토글
+                }
+                
+                lastTapTime = currentTime;
+            }, { passive: false });
+            
+            // 전체 화면 변경 이벤트 리스너 (Wake Lock 해제 처리)
+            const handleFullscreenChange = async () => {
+                const isFullscreen = !!(
+                    document.fullscreenElement ||
+                    document.webkitFullscreenElement ||
+                    document.msFullscreenElement ||
+                    document.mozFullScreenElement
+                );
+                
+                if (!isFullscreen && wakeLock) {
+                    // 전체 화면이 해제되면 Wake Lock도 해제
+                    await releaseWakeLock();
+                }
+            };
+            
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.addEventListener('msfullscreenchange', handleFullscreenChange);
+            document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+            
+            // 초기화
+            log('Initializing...');
+            fetchImages();
+            startRefreshTimer();
+        })();
+    </script>
+</body>
+</html>
+

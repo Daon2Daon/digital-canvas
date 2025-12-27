@@ -1,0 +1,42 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  username String @unique
+  password String // 해시(Bcrypt) 처리 필수
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Image {
+  id           Int      @id @default(autoincrement())
+  originalName String   // 사용자가 업로드한 원본 파일명 (관리용)
+  filename     String   @unique // 서버에 저장된 고유 파일명 (UUID + .jpg)
+  url          String   // 접근 URL (예: "/uploads/uuid.jpg")
+  displayOrder Int?     // 슬라이드 쇼 순서
+  size         Int      // 파일 크기 (bytes)
+  width        Int?     // 이미지 너비 (px)
+  height       Int?     // 이미지 높이 (px)
+  createdAt    DateTime @default(now())
+}
+
+model Settings {
+  id               Int      @id @default(1) // 싱글톤 레코드
+  slideDuration    Int      @default(10000) // 이미지 노출 시간 (ms)
+  transitionEffect String   @default("fade") // 전환 효과 (fade, none 등)
+  transitionSpeed  Int      @default(1000)  // 전환 속도 (ms)
+  displayMode      String   @default("cover") // 표시 모드 (cover: 전체 화면, contain: 비율 유지)
+  randomOrder      Boolean  @default(false)  // 랜덤 순서로 이미지 표시
+  updatedAt        DateTime @updatedAt
+}
+

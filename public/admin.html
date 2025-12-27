@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 - 디지털 액자</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f3f4f6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        /* 로그인 화면 */
+        #loginScreen {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 80vh;
+        }
+        
+        .login-box {
+            background: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .login-box h1 {
+            font-size: 24px;
+            color: #1f2937;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .login-form-group {
+            margin-bottom: 20px;
+        }
+        
+        .login-form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #374151;
+        }
+        
+        .login-form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        /* 관리자 화면 */
+        #adminScreen {
+            display: none;
+        }
+        
+        .header {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            color: #1f2937;
+        }
+        
+        /* 탭 메뉴 */
+        .tabs {
+            display: flex;
+            background: #fff;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #6b7280;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab-button:hover {
+            background: #f9fafb;
+            color: #374151;
+        }
+        
+        .tab-button.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+            background: #f9fafb;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .section {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .section h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #374151;
+        }
+        
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .upload-area:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: #3b82f6;
+            background: #dbeafe;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* 이미지 목록 헤더 */
+        .image-list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .image-list-header .select-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        /* 이미지 그리드 */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .image-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+            position: relative;
+        }
+        
+        .image-card.selected {
+            border-color: #3b82f6;
+            border-width: 2px;
+        }
+        
+        .image-card-checkbox {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .image-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .image-card-body {
+            padding: 10px;
+        }
+        
+        .image-card-title {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .image-card-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #374151;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 8px;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+        
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- 로그인 화면 -->
+    <div id="loginScreen">
+        <div class="login-box">
+            <h1>디지털 액자 관리자</h1>
+            <div id="loginMessage" class="message"></div>
+            <form id="loginForm">
+                <div class="login-form-group">
+                    <label>사용자명</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="login-form-group">
+                    <label>비밀번호</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">로그인</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 관리자 화면 -->
+    <div id="adminScreen">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>디지털 액자 관리자</h1>
+                </div>
+                <button class="btn btn-secondary" id="logoutBtn">로그아웃</button>
+            </div>
+            
+            <div id="message" class="message"></div>
+            
+            <!-- 탭 메뉴 -->
+            <div class="tabs">
+                <button class="tab-button active" data-tab="images">이미지 관리</button>
+                <button class="tab-button" data-tab="settings">슬라이드쇼 설정</button>
+            </div>
+            
+            <!-- 이미지 관리 탭 -->
+            <div id="tabImages" class="tab-content active">
+                <div class="section">
+                    <h2>이미지 업로드</h2>
+                    <div class="upload-area" id="uploadArea">
+                        <p style="font-size: 16px; margin-bottom: 10px;">클릭하거나 파일을 드래그하세요</p>
+                        <p style="font-size: 12px; color: #6b7280;">JPG, PNG, WEBP 파일만 가능 (최대 10MB)</p>
+                        <input type="file" id="fileInput" accept="image/jpeg,image/jpg,image/png,image/webp" multiple>
+                    </div>
+                    
+                    <div class="loading" id="uploadLoading">
+                        <p>업로드 중...</p>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="image-list-header">
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <h2 style="margin: 0;">이미지 목록 (<span id="imageCount">0</span>)</h2>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <label style="font-size: 14px; color: #374151;">정렬:</label>
+                                <select id="sortSelect" class="btn btn-secondary" style="padding: 6px 12px; font-size: 14px;">
+                                    <option value="createdAt-desc">업로드 순서 (최신순)</option>
+                                    <option value="createdAt-asc">업로드 순서 (오래된순)</option>
+                                    <option value="originalName-asc">파일명 (가나다순)</option>
+                                    <option value="originalName-desc">파일명 (역순)</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-secondary" id="selectModeBtn">선택 모드</button>
+                        </div>
+                        <div class="select-actions" id="selectActions" style="display: none;">
+                            <button class="btn btn-secondary" id="selectAllBtn">전체선택</button>
+                            <span id="selectedCount">0개 선택</span>
+                            <button class="btn btn-danger" id="deleteSelectedBtn">선택 삭제</button>
+                            <button class="btn btn-secondary" id="cancelSelectBtn">취소</button>
+                        </div>
+                    </div>
+                    
+                    <div class="loading active" id="listLoading">
+                        <p>로딩 중...</p>
+                    </div>
+                    
+                    <div class="image-grid" id="imageGrid"></div>
+                </div>
+            </div>
+            
+            <!-- 슬라이드쇼 설정 탭 -->
+            <div id="tabSettings" class="tab-content">
+                <div class="section">
+                    <h2>슬라이드쇼 설정</h2>
+                    
+                    <form id="settingsForm">
+                        <div class="form-group">
+                            <label>슬라이드 시간 (초)</label>
+                            <input type="number" id="slideDuration" min="1" max="60" value="10">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>전환 효과</label>
+                            <select id="transitionEffect">
+                                <option value="fade">Fade</option>
+                                <option value="none">없음</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>전환 속도 (초)</label>
+                            <input type="number" id="transitionSpeed" min="0.1" max="5" step="0.1" value="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>표시 모드</label>
+                            <select id="displayMode">
+                                <option value="cover">전체 화면 채우기 (권장)</option>
+                                <option value="contain">이미지 전체 보기 (비율 유지)</option>
+                            </select>
+                            <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                                전체 화면 채우기: 이미지가 화면을 꽉 채웁니다 (일부 잘릴 수 있음)<br>
+                                이미지 전체 보기: 이미지 전체가 보이며 검은 여백이 생길 수 있음
+                            </p>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="randomOrder">
+                                <span>이미지 랜덤 순서로 표시</span>
+                            </label>
+                            <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                                체크하면 이미지가 랜덤 순서로 표시됩니다. (새로고침 시마다 순서 변경)
+                            </p>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" id="saveButton">설정 저장</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = window.location.origin;
+        
+        // 로그인 관련
+        const loginScreen = document.getElementById('loginScreen');
+        const adminScreen = document.getElementById('adminScreen');
+        const loginForm = document.getElementById('loginForm');
+        const loginMessage = document.getElementById('loginMessage');
+        const logoutBtn = document.getElementById('logoutBtn');
+        
+        // 탭 관련
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        // 관리자 화면 DOM 요소
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadLoading = document.getElementById('uploadLoading');
+        const listLoading = document.getElementById('listLoading');
+        const imageGrid = document.getElementById('imageGrid');
+        const imageCount = document.getElementById('imageCount');
+        const message = document.getElementById('message');
+        const settingsForm = document.getElementById('settingsForm');
+        
+        // 선택 관련
+        const selectActions = document.getElementById('selectActions');
+        const selectedCount = document.getElementById('selectedCount');
+        const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+        const cancelSelectBtn = document.getElementById('cancelSelectBtn');
+        const selectAllBtn = document.getElementById('selectAllBtn');
+        let selectedImages = new Set();
+        let isSelectMode = false;
+        
+        // 메시지 표시
+        const showMessage = (text, type = 'success', target = message) => {
+            // 여러 줄 메시지 지원 (pre 태그 사용)
+            if (text.includes('\n')) {
+                target.innerHTML = `<pre style="margin: 0; white-space: pre-wrap;">${text}</pre>`;
+            } else {
+                target.textContent = text;
+            }
+            target.className = `message ${type}`;
+            target.style.display = 'block';
+            
+            // 에러 메시지는 더 오래 표시
+            const timeout = type === 'error' ? 10000 : 5000;
+            setTimeout(() => {
+                target.style.display = 'none';
+                target.innerHTML = ''; // HTML 초기화
+            }, timeout);
+        };
+        
+        // 탭 전환
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabName = button.getAttribute('data-tab');
+                
+                // 탭 버튼 활성화
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // 탭 콘텐츠 표시
+                tabContents.forEach(content => content.classList.remove('active'));
+                document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).classList.add('active');
+            });
+        });
+        
+        // 선택 모드 토글
+        const toggleSelectMode = () => {
+            isSelectMode = !isSelectMode;
+            
+            if (isSelectMode) {
+                // 선택 모드 활성화
+                selectActions.style.display = 'flex';
+                selectModeBtn.textContent = '선택 취소';
+            } else {
+                // 선택 모드 비활성화 - 선택 초기화
+                selectedImages.clear();
+                selectActions.style.display = 'none';
+                selectModeBtn.textContent = '선택 모드';
+                imageGrid.querySelectorAll('.image-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+            }
+            
+            // 체크박스 표시/숨김
+            imageGrid.querySelectorAll('.image-card-checkbox').forEach(checkbox => {
+                checkbox.style.display = isSelectMode ? 'block' : 'none';
+            });
+            
+            updateSelectUI();
+        };
+        
+        // 전체선택/전체해제
+        const toggleSelectAll = () => {
+            if (!isSelectMode) {
+                return;
+            }
+            
+            const allCards = imageGrid.querySelectorAll('.image-card');
+            const allSelected = Array.from(allCards).every(card => {
+                const imageId = parseInt(card.getAttribute('data-id'));
+                return selectedImages.has(imageId);
+            });
+            
+            if (allSelected) {
+                // 전체해제
+                selectedImages.clear();
+            } else {
+                // 전체선택
+                allCards.forEach(card => {
+                    const imageId = parseInt(card.getAttribute('data-id'));
+                    selectedImages.add(imageId);
+                });
+            }
+            
+            updateSelectUI();
+        };
+        
+        // 선택 UI 업데이트
+        const updateSelectUI = () => {
+            const selectedSize = selectedImages.size;
+            selectedCount.textContent = `${selectedSize}개 선택`;
+            
+            // 전체선택 버튼 텍스트 업데이트
+            if (isSelectMode && selectAllBtn) {
+                const allCards = imageGrid.querySelectorAll('.image-card');
+                const allSelected = allCards.length > 0 && Array.from(allCards).every(card => {
+                    const imageId = parseInt(card.getAttribute('data-id'));
+                    return selectedImages.has(imageId);
+                });
+                selectAllBtn.textContent = allSelected ? '전체해제' : '전체선택';
+            }
+            
+            imageGrid.querySelectorAll('.image-card').forEach(card => {
+                const checkbox = card.querySelector('.image-card-checkbox');
+                const imageId = parseInt(card.getAttribute('data-id'));
+                
+                if (selectedImages.has(imageId)) {
+                    card.classList.add('selected');
+                    if (checkbox) checkbox.checked = true;
+                } else {
+                    card.classList.remove('selected');
+                    if (checkbox) checkbox.checked = false;
+                }
+            });
+        };
+        
+        // 이미지 선택 토글
+        const toggleImageSelect = (imageId) => {
+            if (selectedImages.has(imageId)) {
+                selectedImages.delete(imageId);
+            } else {
+                selectedImages.add(imageId);
+            }
+            updateSelectUI();
+        };
+        
+        // 로그인 상태 확인
+        const checkAuthStatus = async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/auth/status`);
+                const data = await res.json();
+                
+                if (data.success && data.isAuthenticated) {
+                    loginScreen.style.display = 'none';
+                    adminScreen.style.display = 'block';
+                    initAdmin();
+                } else {
+                    loginScreen.style.display = 'flex';
+                    adminScreen.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+                loginScreen.style.display = 'flex';
+                adminScreen.style.display = 'none';
+            }
+        };
+        
+        // 로그인
+        const handleLogin = async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const res = await fetch(`${API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    checkAuthStatus();
+                } else {
+                    showMessage(data.error || '로그인 실패', 'error', loginMessage);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showMessage('로그인 중 오류가 발생했습니다.', 'error', loginMessage);
+            }
+        };
+        
+        // 로그아웃
+        const handleLogout = async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/auth/logout`, {
+                    method: 'POST'
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    checkAuthStatus();
+                }
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        };
+        
+        // 관리자 화면 초기화
+        const initAdmin = () => {
+            initSortSelect(); // 정렬 선택 이벤트 초기화
+            loadImages();
+            loadSettings();
+        };
+        
+        // 이미지 목록 불러오기
+        const loadImages = async () => {
+            try {
+                const sortSelect = document.getElementById('sortSelect');
+                const sortValue = sortSelect ? sortSelect.value : 'createdAt-desc';
+                const [sortBy, sortOrder] = sortValue.split('-');
+                
+                const url = new URL(`${API_URL}/api/admin/images`);
+                url.searchParams.set('sortBy', sortBy);
+                url.searchParams.set('sortOrder', sortOrder);
+                
+                const res = await fetch(url.toString());
+                
+                if (res.status === 401) {
+                    checkAuthStatus();
+                    return;
+                }
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    displayImages(data.images);
+                    listLoading.classList.remove('active');
+                }
+            } catch (error) {
+                console.error('Failed to load images:', error);
+                showMessage('이미지 목록을 불러올 수 없습니다.', 'error');
+            }
+        };
+        
+        // 정렬 변경 이벤트 (DOM 로드 후)
+        const initSortSelect = () => {
+            const sortSelect = document.getElementById('sortSelect');
+            if (sortSelect) {
+                sortSelect.addEventListener('change', loadImages);
+            }
+        };
+        
+        // 이미지 표시
+        const displayImages = (images) => {
+            imageCount.textContent = images.length;
+            imageGrid.innerHTML = '';
+            
+            if (images.length === 0) {
+                imageGrid.innerHTML = '<p style="color: #6b7280;">업로드된 이미지가 없습니다.</p>';
+                return;
+            }
+            
+            images.forEach(img => {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+                card.setAttribute('data-id', img.id);
+                
+                // 체크박스 생성
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'image-card-checkbox';
+                checkbox.style.display = isSelectMode ? 'block' : 'none';
+                checkbox.checked = selectedImages.has(img.id); // 현재 선택 상태 반영
+                checkbox.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+                checkbox.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    toggleImageSelect(img.id);
+                });
+                card.appendChild(checkbox);
+                
+                // 이미지 요소 생성
+                const imgElement = document.createElement('img');
+                imgElement.src = img.url;
+                imgElement.alt = img.originalName;
+                card.appendChild(imgElement);
+                
+                // 카드 body 생성
+                const cardBody = document.createElement('div');
+                cardBody.className = 'image-card-body';
+                
+                // 파일명 표시
+                const title = document.createElement('div');
+                title.className = 'image-card-title';
+                title.textContent = img.originalName;
+                title.title = img.originalName;
+                cardBody.appendChild(title);
+                
+                // 액션 버튼
+                const actions = document.createElement('div');
+                actions.className = 'image-card-actions';
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'btn btn-danger';
+                deleteBtn.textContent = '삭제';
+                deleteBtn.onclick = () => deleteImage(img.id);
+                actions.appendChild(deleteBtn);
+                cardBody.appendChild(actions);
+                
+                card.appendChild(cardBody);
+                
+                // 카드 클릭 시 선택 모드일 때만 선택 토글
+                if (isSelectMode) {
+                    card.style.cursor = 'pointer';
+                    card.addEventListener('click', (e) => {
+                        if (e.target !== checkbox && e.target.tagName !== 'BUTTON' && !checkbox.contains(e.target)) {
+                            toggleImageSelect(img.id);
+                        }
+                    });
+                }
+                
+                imageGrid.appendChild(card);
+            });
+        };
+        
+        // 이미지 업로드 (단일 파일)
+        const uploadFile = async (file) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const res = await fetch(`${API_URL}/api/admin/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (res.status === 401) {
+                    checkAuthStatus();
+                    return { success: false, error: '인증 오류' };
+                }
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    return { success: true, filename: file.name };
+                } else {
+                    return { success: false, error: data.error || '업로드 실패', filename: file.name };
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                return { success: false, error: error.message || '업로드 중 오류가 발생했습니다.', filename: file.name };
+            }
+        };
+        
+        // 여러 파일 업로드
+        const uploadFiles = async (files) => {
+            if (!files || files.length === 0) {
+                return;
+            }
+            
+            uploadLoading.classList.add('active');
+            const results = [];
+            
+            // 순차적으로 업로드 (서버 부하 방지)
+            for (const file of files) {
+                const result = await uploadFile(file);
+                results.push(result);
+            }
+            
+            uploadLoading.classList.remove('active');
+            
+            // 결과 요약
+            const successCount = results.filter(r => r.success).length;
+            const failCount = results.filter(r => !r.success).length;
+            const failedFiles = results.filter(r => !r.success);
+            
+            if (failCount === 0) {
+                // 모두 성공
+                showMessage(`${successCount}개의 파일이 성공적으로 업로드되었습니다.`);
+            } else if (successCount === 0) {
+                // 모두 실패
+                const errorMsg = failedFiles.map(f => `- ${f.filename}: ${f.error}`).join('\n');
+                showMessage(`모든 파일 업로드 실패:\n${errorMsg}`, 'error');
+            } else {
+                // 일부 성공
+                const errorMsg = failedFiles.map(f => `- ${f.filename}: ${f.error}`).join('\n');
+                showMessage(`${successCount}개 성공, ${failCount}개 실패:\n${errorMsg}`, 'error');
+            }
+            
+            // 성공한 파일이 있으면 목록 새로고침
+            if (successCount > 0) {
+                loadImages();
+            }
+        };
+        
+        // 이미지 삭제
+        const deleteImage = async (id) => {
+            if (!confirm('이미지를 삭제하시겠습니까?')) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_URL}/api/admin/images/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (res.status === 401) {
+                    checkAuthStatus();
+                    return;
+                }
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showMessage('이미지가 삭제되었습니다.');
+                    loadImages();
+                } else {
+                    showMessage(`삭제 실패: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                showMessage('삭제 중 오류가 발생했습니다.', 'error');
+            }
+        };
+        
+        // 선택된 이미지 삭제
+        const deleteSelectedImages = async () => {
+            if (selectedImages.size === 0) {
+                showMessage('삭제할 이미지를 선택해주세요.', 'error');
+                return;
+            }
+            
+            if (!confirm(`선택한 ${selectedImages.size}개의 이미지를 삭제하시겠습니까?`)) {
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_URL}/api/admin/images/delete-multiple`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: Array.from(selectedImages) })
+                });
+                
+                if (res.status === 401) {
+                    checkAuthStatus();
+                    return;
+                }
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    showMessage(data.message || `${data.deletedCount}개의 이미지가 삭제되었습니다.`);
+                    selectedImages.clear();
+                    toggleSelectMode();
+                    loadImages();
+                } else {
+                    showMessage(`삭제 실패: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Delete multiple error:', error);
+                showMessage('삭제 중 오류가 발생했습니다.', 'error');
+            }
+        };
+        
+        // 설정 불러오기
+        const loadSettings = async () => {
+            try {
+                const res = await fetch(`${API_URL}/api/admin/settings`);
+                
+                if (res.status === 401) {
+                    checkAuthStatus();
+                    return;
+                }
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('slideDuration').value = data.settings.slideDuration / 1000;
+                    document.getElementById('transitionEffect').value = data.settings.transitionEffect;
+                    document.getElementById('transitionSpeed').value = data.settings.transitionSpeed / 1000;
+                    document.getElementById('displayMode').value = data.settings.displayMode || 'cover';
+                    document.getElementById('randomOrder').checked = data.settings.randomOrder || false;
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        };
+        
+        // 설정 저장
+        const saveSettings = async (e) => {
+            e.preventDefault();
+            
+            const saveButton = document.getElementById('saveButton');
+            const originalText = saveButton.textContent;
+            
+            saveButton.disabled = true;
+            saveButton.textContent = '저장 중...';
+            saveButton.style.opacity = '0.7';
+            
+            const settings = {
+                slideDuration: parseInt(document.getElementById('slideDuration').value) * 1000,
+                transitionEffect: document.getElementById('transitionEffect').value,
+                transitionSpeed: parseFloat(document.getElementById('transitionSpeed').value) * 1000,
+                displayMode: document.getElementById('displayMode').value,
+                randomOrder: document.getElementById('randomOrder').checked
+            };
+            
+            try {
+                const res = await fetch(`${API_URL}/api/admin/settings`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+                
+                if (res.status === 401) {
+                    checkAuthStatus();
+                    return;
+                }
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    saveButton.style.background = '#10b981';
+                    saveButton.textContent = '저장 완료!';
+                    showMessage('설정이 저장되었습니다.');
+                    
+                    setTimeout(() => {
+                        saveButton.disabled = false;
+                        saveButton.textContent = originalText;
+                        saveButton.style.background = '';
+                        saveButton.style.opacity = '';
+                    }, 2000);
+                } else {
+                    saveButton.disabled = false;
+                    saveButton.textContent = originalText;
+                    saveButton.style.opacity = '';
+                    showMessage(`저장 실패: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                saveButton.disabled = false;
+                saveButton.textContent = originalText;
+                saveButton.style.opacity = '';
+                showMessage('설정 저장 중 오류가 발생했습니다.', 'error');
+            }
+        };
+        
+        // 이벤트 리스너
+        loginForm.addEventListener('submit', handleLogin);
+        logoutBtn.addEventListener('click', handleLogout);
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            uploadFiles(files);
+            e.target.value = '';
+        });
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = Array.from(e.dataTransfer.files);
+            uploadFiles(files);
+        });
+        
+        settingsForm.addEventListener('submit', saveSettings);
+        
+        deleteSelectedBtn.addEventListener('click', deleteSelectedImages);
+        cancelSelectBtn.addEventListener('click', toggleSelectMode);
+        selectAllBtn.addEventListener('click', toggleSelectAll);
+        
+        // 선택 모드 버튼
+        const selectModeBtn = document.getElementById('selectModeBtn');
+        selectModeBtn.addEventListener('click', toggleSelectMode);
+        
+        // 전역 함수
+        window.deleteImage = deleteImage;
+        
+        // 초기화
+        checkAuthStatus();
+    </script>
+</body>
+</html>
