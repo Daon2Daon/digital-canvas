@@ -18,6 +18,9 @@ import bcrypt from 'bcryptjs';
 const app = express();
 const prisma = new PrismaClient();
 
+// 리버스 프록시 신뢰 설정 (Nginx, Traefik 등 뒤에서 실행 시 필요)
+app.set('trust proxy', 1);
+
 // 환경 변수 검증 (프로덕션 환경에서 필수)
 const PORT = parseInt(process.env.PORT || '20010', 10);
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;

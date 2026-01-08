@@ -1,0 +1,116 @@
+digital-canvas-app
+date,stream,content
+2026/01/08 18:17:38,stdout,[Viewer API] Returning 124 images
+
+2026/01/08 18:17:08,stdout,[Viewer API] Returning 124 images
+
+2026/01/08 18:16:37,stdout,[Viewer API] Returning 124 images
+
+2026/01/08 18:16:07,stdout,[Viewer API] Returning 124 images
+
+2026/01/08 18:15:36,stdout,[Viewer API] Returning 124 images
+
+2026/01/08 18:15:06,stdout,[Viewer API] Returning 124 images
+
+2026/01/08 18:14:35,stdout,[Viewer API] Returning 124 images
+
+2026/01/08 18:14:05,stdout,[Viewer API] Returning 124 images
+
+2026/01/08 18:13:34,stdout,[Viewer API] Returning 124 images
+
+2026/01/08 18:13:31,stdout,[Viewer API] Returning 124 images
+
+2026/01/08 18:13:13,stdout,===========================================
+
+2026/01/08 18:13:13,stdout,Admin:  http://0.0.0.0:20010/admin
+
+2026/01/08 18:13:13,stdout,Viewer: http://0.0.0.0:20010/
+
+2026/01/08 18:13:13,stdout,Server: http://0.0.0.0:20010
+
+2026/01/08 18:13:13,stdout,===========================================
+
+2026/01/08 18:13:13,stdout,Digital Canvas Server (TypeScript)
+
+2026/01/08 18:13:13,stdout,===========================================
+
+2026/01/08 18:13:13,stderr,"memory, and will not scale past a single process.
+"
+2026/01/08 18:13:13,stderr,"designed for a production environment, as it will leak
+"
+2026/01/08 18:13:13,stderr,Warning: connect.session() MemoryStore is not
+
+2026/01/08 18:13:12,stdout,
+
+2026/01/08 18:13:12,stdout,==========================================
+
+2026/01/08 18:13:12,stdout,🚀 Starting Express server...
+
+2026/01/08 18:13:12,stdout,==========================================
+
+2026/01/08 18:13:12,stdout,
+
+2026/01/08 18:13:12,stdout,✅ Build output verified
+
+2026/01/08 18:13:12,stdout,🔍 Checking build output...
+
+2026/01/08 18:13:12,stdout,
+
+2026/01/08 18:13:12,stdout,-rw-r--r--    1 node     node       64.0K Jan  3 04:53 /app/prisma/database.db
+
+2026/01/08 18:13:12,stdout,✅ SQLite database file exists: /app/prisma/database.db
+
+2026/01/08 18:13:12,stdout,📋 Final database status:
+
+2026/01/08 18:13:12,stdout,
+
+2026/01/08 18:13:12,stdout,"ℹ️  Seed script not configured, skipping...
+"
+2026/01/08 18:13:12,stdout,🌱 Checking for seed script...
+
+2026/01/08 18:13:12,stdout,
+
+2026/01/08 18:13:12,stdout,✅ Migrations applied successfully!
+
+2026/01/08 18:13:12,stderr,npm notice
+
+2026/01/08 18:13:12,stderr,npm notice To update run: npm install -g npm@11.7.0
+
+2026/01/08 18:13:12,stderr,npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.7.0
+
+2026/01/08 18:13:12,stderr,npm notice New major version of npm available! 10.8.2 -> 11.7.0
+
+2026/01/08 18:13:12,stderr,npm notice
+
+2026/01/08 18:13:12,stdout,No pending migrations to apply.
+
+2026/01/08 18:13:12,stdout,
+
+2026/01/08 18:13:12,stdout,
+
+2026/01/08 18:13:12,stdout,1 migration found in prisma/migrations
+
+2026/01/08 18:13:12,stdout,
+
+2026/01/08 18:13:12,stdout,Datasource "db": SQLite database "database.db" at "file:/app/prisma/database.db"
+
+2026/01/08 18:13:12,stdout,Prisma schema loaded from prisma/schema.prisma
+
+2026/01/08 18:13:04,stdout,📊 Applying database migrations...
+
+2026/01/08 18:13:04,stdout,
+
+2026/01/08 18:13:04,stdout,📦 Checking Prisma Client...
+
+2026/01/08 18:13:04,stdout,
+
+2026/01/08 18:13:04,stdout,🔍 Checking SQLite database directory...
+
+2026/01/08 18:13:04,stdout,
+
+2026/01/08 18:13:04,stdout,==========================================
+
+2026/01/08 18:13:04,stdout,Digital Canvas - Starting...
+
+2026/01/08 18:13:04,stdout,==========================================
+

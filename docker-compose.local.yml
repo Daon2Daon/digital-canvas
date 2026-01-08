@@ -1,6 +1,8 @@
 # Digital Canvas - Local Docker Build
 # 로컬 개발 및 테스트용
 
+name: digital-canvas-local
+
 services:
   app:
     build:

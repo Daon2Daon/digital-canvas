@@ -13,6 +13,7 @@ services:
       DATABASE_URL: file:/app/prisma/database.db
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      SESSION_SECRET: ${SESSION_SECRET:-change-this-secret-in-production}
     ports:
       - "${PORT:-20010}:${PORT:-20010}"
     volumes:
@@ -27,18 +28,6 @@ services:
       start_period: 10s
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-
-  # Watchtower - 자동 컨테이너 업데이트
-  watchtower:
-    image: containrrr/watchtower:latest
-    container_name: digital-canvas-watchtower
-    environment:
-      WATCHTOWER_CLEANUP: "true"
-      WATCHTOWER_POLL_INTERVAL: 300
-      WATCHTOWER_LABEL_ENABLE: "true"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
 
 # Named volumes for data persistence
 volumes:
