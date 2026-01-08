@@ -10,28 +10,57 @@ import { PrismaClient } from '@prisma/client';
 import multer from 'multer';
 import sharp from 'sharp';
 import path from 'path';
-import fs from 'fs';
+import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import { randomUUID } from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const app = express();
 const prisma = new PrismaClient();
 
-// 환경 변수 설정
-const PORT = parseInt(process.env.PORT || '7400', 10);
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+// 환경 변수 검증 (프로덕션 환경에서 필수)
+const PORT = parseInt(process.env.PORT || '20010', 10);
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const SESSION_SECRET = process.env.SESSION_SECRET;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+
+// 프로덕션 환경에서 필수 환경변수 검증
+if (IS_PRODUCTION) {
+  const missingVars: string[] = [];
+  if (!ADMIN_USERNAME) missingVars.push('ADMIN_USERNAME');
+  if (!ADMIN_PASSWORD) missingVars.push('ADMIN_PASSWORD');
+  if (!SESSION_SECRET) missingVars.push('SESSION_SECRET');
+
+  if (missingVars.length > 0) {
+    console.error(`[ERROR] Missing required environment variables: ${missingVars.join(', ')}`);
+    process.exit(1);
+  }
+}
+
+// 개발 환경 기본값 (경고 출력)
+const adminUsername = ADMIN_USERNAME || 'admin';
+const adminPassword = ADMIN_PASSWORD || 'admin123';
+const sessionSecret = SESSION_SECRET || 'dev-secret-' + randomUUID();
+
+if (!IS_PRODUCTION && (!ADMIN_USERNAME || !ADMIN_PASSWORD)) {
+  console.warn('[WARN] Using default credentials. Set ADMIN_USERNAME and ADMIN_PASSWORD in production.');
+}
+
+// 비밀번호 해시 생성 (서버 시작 시 1회)
+const adminPasswordHash = bcrypt.hashSync(adminPassword, 10);
 
 // 세션 설정
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || 'digital-canvas-secret-key-change-in-production',
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false, // 개발 환경에서는 false, 프로덕션에서는 HTTPS 사용 시 true
+      secure: IS_PRODUCTION, // 프로덕션에서는 HTTPS 필수
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24시간
-      sameSite: 'lax', // CSRF 보호
+      sameSite: 'strict', // CSRF 보호 강화
     },
   })
 );
@@ -46,8 +75,8 @@ app.use(express.static('public'));
 
 // 업로드 디렉토리 생성
 const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+if (!existsSync(uploadDir)) {
+  fs.mkdir(uploadDir, { recursive: true }).catch(console.error);
 }
 
 // Multer 설정 (메모리 스토리지 사용)
@@ -180,8 +209,11 @@ app.post('/api/auth/login', async (req: Request, res: Response) => {
       });
     }
 
-    // 환경 변수에서 관리자 정보 확인
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+    // 관리자 정보 확인 (bcrypt 해시 비교)
+    const isValidUsername = username === adminUsername;
+    const isValidPassword = await bcrypt.compare(password, adminPasswordHash);
+
+    if (isValidUsername && isValidPassword) {
       req.session.isAuthenticated = true;
       req.session.username = username;
 
@@ -307,7 +339,7 @@ app.post('/api/admin/upload', requireAuth, upload.single('file'), async (req: Re
 
     // 메타데이터 추출
     const metadata = await sharp(filepath).metadata();
-    const stats = fs.statSync(filepath);
+    const stats = await fs.stat(filepath);
 
     // DB에 저장
     const image = await prisma.image.create({
@@ -356,8 +388,11 @@ app.delete('/api/admin/images/:id', requireAuth, async (req: Request, res: Respo
 
     // 파일 삭제
     const filepath = path.join(__dirname, '..', 'public', image.url);
-    if (fs.existsSync(filepath)) {
-      fs.unlinkSync(filepath);
+    try {
+      await fs.unlink(filepath);
+    } catch (err) {
+      // 파일이 이미 없는 경우 무시
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
     }
 
     // DB에서 삭제
@@ -420,8 +455,11 @@ app.post('/api/admin/images/delete-multiple', requireAuth, async (req: Request, 
     // 파일 삭제 및 DB 삭제
     const deletePromises = images.map(async (image) => {
       const filepath = path.join(__dirname, '..', 'public', image.url);
-      if (fs.existsSync(filepath)) {
-        fs.unlinkSync(filepath);
+      try {
+        await fs.unlink(filepath);
+      } catch (err) {
+        // 파일이 이미 없는 경우 무시
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
       }
       return prisma.image.delete({
         where: { id: image.id },

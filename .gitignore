@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+*.tsbuildinfo
 
 # Environment variables
 .env
@@ -22,6 +23,7 @@ yarn-error.log*
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 *~
@@ -30,6 +32,17 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Uploads
+# Uploads (keep directory structure)
 public/uploads/*
+!public/uploads/.gitkeep
 
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.backup
+*.bak

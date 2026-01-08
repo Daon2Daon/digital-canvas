@@ -1,33 +1,44 @@
 # Digital Canvas - Docker Compose Configuration
-# TypeScript 기반 프로덕션 배포용
+# GitHub Container Registry + Watchtower 자동 배포
 # Using SQLite database (no separate database container needed)
 
 services:
   # Application Server
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/daon2daon/digital-canvas:latest
     container_name: digital-canvas-app
     environment:
       NODE_ENV: production
-      PORT: ${PORT:-7400}
+      PORT: ${PORT:-20010}
       DATABASE_URL: file:/app/prisma/database.db
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
     ports:
-      - "${PORT:-7400}:7400"
+      - "${PORT:-20010}:${PORT:-20010}"
     volumes:
       - uploads_data:/app/public/uploads
       - db_data:/app/prisma
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:7400/api/viewer/images', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      test: ["CMD", "sh", "-c", "node -e \"require('http').get('http://localhost:' + (process.env.PORT || 20010) + '/api/viewer/images', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\""]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-    # 마이그레이션은 entrypoint.sh에서 처리됨
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # Watchtower - 자동 컨테이너 업데이트
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: digital-canvas-watchtower
+    environment:
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_POLL_INTERVAL: 300
+      WATCHTOWER_LABEL_ENABLE: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
 
 # Named volumes for data persistence
 volumes:

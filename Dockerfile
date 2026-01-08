@@ -58,12 +58,12 @@ RUN mkdir -p public/uploads prisma && \
 # Use non-root user
 USER node
 
-# Health check
+# Health check (uses PORT env variable, defaults to 20010)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:7400/api/viewer/images', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD sh -c "node -e \"require('http').get('http://localhost:' + (process.env.PORT || 20010) + '/api/viewer/images', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\""
 
-# Expose port
-EXPOSE 7400
+# Expose port (default 20010, can be overridden via PORT env)
+EXPOSE ${PORT:-20010}
 
 # Start application with dumb-init and entrypoint script
 ENTRYPOINT ["dumb-init", "--"]

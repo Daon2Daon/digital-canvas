@@ -1,0 +1,36 @@
+# Digital Canvas - Local Docker Build
+# 로컬 개발 및 테스트용
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: digital-canvas-local
+    environment:
+      NODE_ENV: development
+      PORT: ${PORT:-20010}
+      DATABASE_URL: file:/app/prisma/database.db
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      SESSION_SECRET: ${SESSION_SECRET:-local-dev-secret}
+    ports:
+      - "${PORT:-20010}:${PORT:-20010}"
+    volumes:
+      - uploads_data:/app/public/uploads
+      - db_data:/app/prisma
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "node -e \"require('http').get('http://localhost:' + (process.env.PORT || 20010) + '/api/viewer/images', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  uploads_data:
+    name: digital-canvas-local_uploads
+    driver: local
+  db_data:
+    name: digital-canvas-local_db
+    driver: local
