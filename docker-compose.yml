@@ -1,40 +1,39 @@
-# Digital Canvas - Docker Compose Configuration
-# GitHub Container Registry + Watchtower 자동 배포
-# Using SQLite database (no separate database container needed)
+version: '3.9'
 
 services:
-  # Application Server
   app:
     image: ghcr.io/daon2daon/digital-canvas:latest
     container_name: digital-canvas-app
+    # 항상 최신 이미지를 확인
+    pull_policy: always
+    
     environment:
       NODE_ENV: production
-      PORT: ${PORT:-20010}
+      # [변경] 내부 앱은 표준 포트 3000번에서 실행 (고정)
+      PORT: 3000
       DATABASE_URL: file:/app/prisma/database.db
-      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
-      SESSION_SECRET: ${SESSION_SECRET:-change-this-secret-in-production}
+      # Portainer 환경변수에서 로드
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET}
+
     ports:
-      - "${PORT:-20010}:${PORT:-20010}"
+      # [변경] 외부포트(변수) : 내부포트(3000)
+      - "${HOST_PORT:-3000}:3000"
+      
     volumes:
-      - uploads_data:/app/public/uploads
-      - db_data:/app/prisma
+      - /volume1/docker/digital-canvas/uploads:/app/public/uploads
+      - /volume1/docker/digital-canvas/db:/app/prisma
+
+    
     restart: unless-stopped
+    
     healthcheck:
-      test: ["CMD", "sh", "-c", "node -e \"require('http').get('http://localhost:' + (process.env.PORT || 20010) + '/api/viewer/images', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\""]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/viewer/images', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+      
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
-
-# Named volumes for data persistence
-volumes:
-  uploads_data:
-    name: digital-canvas_uploads
-    driver: local
-  db_data:
-    name: digital-canvas_db
-    driver: local
-

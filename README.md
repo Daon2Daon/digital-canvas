@@ -57,8 +57,8 @@ npm run dev
 ```
 
 서버가 시작되면:
-- 뷰어: http://localhost:7400/
-- 관리자: http://localhost:7400/admin
+- 뷰어: http://localhost:20010/
+- 관리자: http://localhost:20010/admin
 
 ### 프로덕션 빌드
 
@@ -70,19 +70,25 @@ npm run build
 npm start
 ```
 
-### Docker 배포
+### 로컬 Docker 테스트
+
+로컬에서 Docker를 사용하여 테스트하는 경우:
 
 ```bash
-# 1. Docker 이미지 빌드 및 컨테이너 시작
-docker-compose up -d
+# 1. docker-compose.local.yml 사용
+docker-compose -f docker-compose.local.yml up -d
 
 # 2. 로그 확인
-docker-compose logs -f
+docker-compose -f docker-compose.local.yml logs -f
 
 # 3. 접속
-# 뷰어: http://localhost:7400/
-# 관리자: http://localhost:7400/admin
+# 뷰어: http://localhost:20010/
+# 관리자: http://localhost:20010/admin
 ```
+
+### 프로덕션 배포 (Portainer)
+
+프로덕션 환경은 Portainer를 사용하여 배포합니다.
 
 자세한 내용: **[docs/DOCKER_DEPLOYMENT.md](./docs/DOCKER_DEPLOYMENT.md)**
 
@@ -133,12 +139,14 @@ digital-canvas/
 
 `.env.example` 파일을 참고하여 `.env` 파일을 생성하세요:
 
+#### 로컬 개발
+
 ```bash
 # 애플리케이션 포트
-PORT=3000
+PORT=20010
 
 # Node 환경
-NODE_ENV=production
+NODE_ENV=development
 
 # Prisma (SQLite)
 DATABASE_URL="file:./prisma/database.db"
@@ -146,9 +154,20 @@ DATABASE_URL="file:./prisma/database.db"
 # 관리자 계정 설정
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=admin123
+
+# 세션 시크릿
+SESSION_SECRET=digital-canvas-secret-key-change-in-production
 ```
 
-**중요**: 프로덕션 환경에서는 반드시 `ADMIN_USERNAME`과 `ADMIN_PASSWORD`를 변경하세요!
+#### Portainer (프로덕션)
+
+프로덕션 환경에서는 Portainer 스택 설정의 환경 변수에서 설정합니다:
+- `HOST_PORT`: 외부 노출 포트 (예: 3000)
+- `ADMIN_USERNAME`: 관리자 계정
+- `ADMIN_PASSWORD`: 관리자 비밀번호
+- `SESSION_SECRET`: 세션 암호화 키
+
+**중요**: 프로덕션 환경에서는 반드시 강력한 `ADMIN_PASSWORD`와 `SESSION_SECRET`을 사용하세요!
 
 ### 슬라이드쇼 설정 (관리자 페이지)
 
@@ -226,7 +245,7 @@ npm start
 ### 1. 이미지 업로드 (PC)
 
 ```
-http://localhost:7400/admin 접속
+관리자 페이지 접속
 → 이미지 파일 드래그 앤 드롭
 → 자동으로 1920px 리사이징
 → 업로드 완료
@@ -246,7 +265,7 @@ http://localhost:7400/admin 접속
 ### 3. 뷰어에서 즐기기
 
 ```
-http://localhost:7400/ 접속
+뷰어 페이지 접속
 → 전체 화면 실행
 → 자동 슬라이드쇼 시작
 → 설정한 시간마다 자동 전환
@@ -264,8 +283,9 @@ http://localhost:7400/ 접속
 - **Multer 사용** - Formidable 대신 더 모던한 파일 업로드 방식
 - **최신 Express 패턴** - 타입 정의 포함
 - **프론트엔드도 ES6+** - 기존 ES5에서 모던 JavaScript로 업그레이드
-- **포트 변경** - 8754 → 7400
+- **포트 변경** - 8754 → 20010 (로컬), 3000 (프로덕션)
 - **로그인/로그아웃 기능** - 관리자 인증 기능 추가 (express-session 기반)
+- **Portainer 배포** - GitHub Container Registry를 사용한 자동 배포
 
 ---
 

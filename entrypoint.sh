@@ -46,8 +46,8 @@ else
         echo "✅ Migration succeeded on retry!"
     else
         echo "❌ Migration still failing, but continuing to start server..."
-        echo "Please check migration status manually:"
-        echo "  docker-compose exec app npx prisma migrate status"
+        echo "Please check migration status manually from the container console:"
+        echo "  npx prisma migrate status"
     fi
 fi
 

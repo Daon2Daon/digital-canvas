@@ -1,145 +1,271 @@
 # Docker 배포 가이드
 
-Digital Canvas를 Docker를 사용하여 배포하는 방법입니다.
+Digital Canvas의 배포 환경별 가이드입니다.
 
-## 필요 사항
+---
 
-- Docker 20.10+
-- Docker Compose 2.0+
+## 프로덕션 배포 (Portainer)
 
-## 빠른 시작
+프로덕션 환경은 Portainer를 사용하여 GitHub Container Registry의 이미지를 배포합니다.
 
-### 1. 프로젝트 클론
+### 사전 준비
+
+#### 1. NAS 폴더 생성
+
+Portainer 스택 생성 전에 NAS에 다음 폴더를 생성하세요:
 
 ```bash
+/volume1/docker/digital-canvas/
+├── db/          # SQLite 데이터베이스 저장
+└── uploads/     # 업로드된 이미지 저장
+```
+
+Synology NAS의 경우:
+- File Station을 열고 `docker` 공유 폴더로 이동
+- `digital-canvas` 폴더 생성
+- 그 안에 `db`와 `uploads` 폴더 생성
+
+#### 2. Portainer 스택 생성
+
+1. Portainer 웹 UI에 접속
+2. **Stacks** 메뉴 선택
+3. **Add stack** 버튼 클릭
+4. 스택 이름 입력: `digital-canvas`
+5. Web editor에 `docker-compose.yml` 내용 붙여넣기
+
+#### 3. 환경 변수 설정
+
+Portainer 스택 설정에서 다음 환경 변수를 추가하세요:
+
+| 변수명 | 설명 | 예시 |
+|--------|------|------|
+| `HOST_PORT` | 외부 노출 포트 | `3000` |
+| `ADMIN_USERNAME` | 관리자 계정 | `admin` |
+| `ADMIN_PASSWORD` | 관리자 비밀번호 | `secure_password_123` |
+| `SESSION_SECRET` | 세션 암호화 키 | `random_secret_key_here` |
+
+**중요**: 
+- `ADMIN_PASSWORD`는 반드시 강력한 비밀번호로 설정하세요
+- `SESSION_SECRET`은 랜덤한 문자열로 생성하세요 (30자 이상 권장)
+
+#### 4. 스택 배포
+
+1. 환경 변수 입력 완료
+2. **Deploy the stack** 버튼 클릭
+3. 컨테이너가 시작될 때까지 대기
+
+### 접속
+
+- 뷰어: `http://nas주소:포트번호/`
+- 관리자: `http://nas주소:포트번호/admin`
+
+예: `http://192.168.1.100:3000/`
+
+### 자동 업데이트 (Watchtower)
+
+`docker-compose.yml`에 Watchtower 라벨이 포함되어 있습니다:
+
+```yaml
+labels:
+  - "com.centurylinklabs.watchtower.enable=true"
+```
+
+Watchtower가 실행 중이라면, GitHub에 새로운 이미지가 푸시될 때 자동으로 업데이트됩니다.
+
+Watchtower 설정 방법:
+
+```yaml
+# Portainer에 별도 스택으로 추가
+version: "3"
+services:
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_INCLUDE_RESTARTING=true
+    command: --interval 300 --label-enable
+```
+
+### 관리 명령어
+
+Portainer 컨테이너 콘솔에서 실행:
+
+```bash
+# 마이그레이션 상태 확인
+npx prisma migrate status
+
+# 데이터베이스 초기화 (주의: 모든 데이터 삭제)
+npx prisma migrate reset
+
+# Prisma Studio 실행 (데이터베이스 GUI)
+npx prisma studio
+```
+
+### 백업
+
+#### 데이터베이스 백업
+
+```bash
+# NAS SSH 접속 후
+cd /volume1/docker/digital-canvas/db
+tar czf database-backup-$(date +%Y%m%d).tar.gz database.db
+```
+
+#### 이미지 파일 백업
+
+```bash
+# NAS SSH 접속 후
+cd /volume1/docker/digital-canvas/uploads
+tar czf uploads-backup-$(date +%Y%m%d).tar.gz .
+```
+
+또는 Synology의 Hyper Backup을 사용하여 `/volume1/docker/digital-canvas/` 전체를 백업하세요.
+
+### 문제 해결
+
+#### 컨테이너가 시작되지 않을 때
+
+1. Portainer에서 로그 확인
+2. 환경 변수가 올바르게 설정되었는지 확인
+3. NAS 폴더 권한 확인
+
+```bash
+# NAS SSH 접속 후
+ls -la /volume1/docker/digital-canvas/
+# db와 uploads 폴더가 존재하고 쓰기 권한이 있는지 확인
+```
+
+#### 데이터베이스 에러
+
+```bash
+# Portainer 콘솔에서
+npx prisma migrate deploy
+```
+
+#### 이미지가 최신으로 업데이트되지 않을 때
+
+1. Portainer에서 스택 중지
+2. **Update the stack** 버튼 클릭
+3. **Pull latest image version** 체크
+4. 스택 재시작
+
+또는 Watchtower를 사용하여 자동 업데이트하세요.
+
+---
+
+## 로컬 개발 (docker-compose.local.yml)
+
+로컬에서 Docker를 사용하여 개발하는 경우 `docker-compose.local.yml`을 사용합니다.
+
+### 빠른 시작
+
+```bash
+# 1. 프로젝트 클론
 git clone <repository-url>
 cd digital-canvas
+
+# 2. 환경 변수 설정 (선택사항)
+cp env.example .env
+# .env 파일 편집
+
+# 3. 컨테이너 시작
+docker-compose -f docker-compose.local.yml up -d
+
+# 4. 로그 확인
+docker-compose -f docker-compose.local.yml logs -f
+
+# 5. 접속
+# 뷰어: http://localhost:20010/
+# 관리자: http://localhost:20010/admin
 ```
 
-### 2. 환경 변수 설정
+### 특징
 
-`.env` 파일을 생성하여 설정을 변경할 수 있습니다:
+- 로컬에서 소스코드를 빌드하여 이미지 생성
+- Docker 볼륨 사용 (호스트 경로에 의존하지 않음)
+- 개발 모드로 실행 (`NODE_ENV=development`)
+- 기본 포트: 20010
 
-```bash
-# 애플리케이션 포트
-PORT=7400
-
-# 관리자 계정 설정
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=admin123
-```
-
-`.env.example` 파일을 참고하여 `.env` 파일을 생성하세요.
-
-**중요**: 프로덕션 환경에서는 반드시 `ADMIN_USERNAME`과 `ADMIN_PASSWORD`를 변경하세요!
-
-### 3. Docker 이미지 빌드 및 실행
+### 관리 명령어
 
 ```bash
-# 이미지 빌드 및 컨테이너 시작
-docker-compose up -d
+# 컨테이너 중지
+docker-compose -f docker-compose.local.yml down
+
+# 컨테이너 재시작
+docker-compose -f docker-compose.local.yml restart
 
 # 로그 확인
-docker-compose logs -f
+docker-compose -f docker-compose.local.yml logs -f
 
-# 상태 확인
-docker-compose ps
+# 컨테이너 내부 접속
+docker-compose -f docker-compose.local.yml exec app sh
+
+# 이미지 재빌드
+docker-compose -f docker-compose.local.yml build --no-cache
+docker-compose -f docker-compose.local.yml up -d
 ```
 
-### 4. 접속
+### 데이터 영속성
 
-- 뷰어: http://localhost:7400/
-- 관리자: http://localhost:7400/admin
+Docker 볼륨 사용:
+- `digital-canvas-local_uploads`: 업로드된 이미지 파일
+- `digital-canvas-local_db`: SQLite 데이터베이스 파일
 
-## 관리 명령어
-
-### 컨테이너 중지
+#### 볼륨 확인
 
 ```bash
-docker-compose down
+docker volume ls | grep digital-canvas-local
 ```
 
-### 컨테이너 재시작
+#### 볼륨 삭제 (주의: 모든 데이터 삭제)
 
 ```bash
-docker-compose restart
+docker-compose -f docker-compose.local.yml down -v
 ```
 
-### 로그 확인
-
-```bash
-# 실시간 로그
-docker-compose logs -f
-
-# 최근 100줄
-docker-compose logs --tail=100
-```
-
-### 컨테이너 내부 접속
-
-```bash
-docker-compose exec app sh
-```
-
-### 데이터베이스 상태 확인
-
-```bash
-# Prisma 마이그레이션 상태
-docker-compose exec app npx prisma migrate status
-
-# Prisma Studio (웹 GUI)
-docker-compose exec app npx prisma studio
-# 브라우저에서 http://localhost:5555 접속
-```
-
-### 이미지 재빌드
-
-```bash
-# 캐시 없이 재빌드
-docker-compose build --no-cache
-
-# 재빌드 후 재시작
-docker-compose up -d --build
-```
-
-## 데이터 영속성
-
-Docker Compose는 다음 볼륨을 사용하여 데이터를 영구 저장합니다:
-
-- `digital-canvas_uploads`: 업로드된 이미지 파일
-- `digital-canvas_db`: SQLite 데이터베이스 파일
-
-### 볼륨 확인
-
-```bash
-docker volume ls | grep digital-canvas
-```
-
-### 볼륨 삭제 (주의: 모든 데이터가 삭제됩니다)
-
-```bash
-docker-compose down -v
-```
-
-### 볼륨 백업
+#### 볼륨 백업
 
 ```bash
 # 업로드된 이미지 백업
-docker run --rm -v digital-canvas_uploads:/data -v $(pwd):/backup alpine tar czf /backup/uploads-backup.tar.gz -C /data .
+docker run --rm -v digital-canvas-local_uploads:/data -v $(pwd):/backup alpine tar czf /backup/uploads-backup.tar.gz -C /data .
 
 # 데이터베이스 백업
-docker run --rm -v digital-canvas_db:/data -v $(pwd):/backup alpine tar czf /backup/db-backup.tar.gz -C /data .
+docker run --rm -v digital-canvas-local_db:/data -v $(pwd):/backup alpine tar czf /backup/db-backup.tar.gz -C /data .
 ```
 
-### 볼륨 복원
+#### 볼륨 복원
 
 ```bash
 # 업로드된 이미지 복원
-docker run --rm -v digital-canvas_uploads:/data -v $(pwd):/backup alpine tar xzf /backup/uploads-backup.tar.gz -C /data
+docker run --rm -v digital-canvas-local_uploads:/data -v $(pwd):/backup alpine tar xzf /backup/uploads-backup.tar.gz -C /data
 
 # 데이터베이스 복원
-docker run --rm -v digital-canvas_db:/data -v $(pwd):/backup alpine tar xzf /backup/db-backup.tar.gz -C /data
+docker run --rm -v digital-canvas-local_db:/data -v $(pwd):/backup alpine tar xzf /backup/db-backup.tar.gz -C /data
 ```
+
+---
+
+## CI/CD (GitHub Actions)
+
+코드가 `main` 브랜치에 푸시되면 자동으로:
+
+1. Docker 이미지 빌드
+2. GitHub Container Registry(GHCR)에 푸시
+3. 이미지 태그: `ghcr.io/daon2daon/digital-canvas:latest`
+
+Watchtower가 설정되어 있다면, 새로운 이미지가 푸시된 후 자동으로 컨테이너를 업데이트합니다.
+
+### GitHub Secrets 설정
+
+필요 없음 - `GITHUB_TOKEN`은 자동으로 제공됨
+
+---
 
 ## Dockerfile 구조
 
@@ -155,125 +281,15 @@ docker run --rm -v digital-canvas_db:/data -v $(pwd):/backup alpine tar xzf /bac
 - dumb-init 사용 (시그널 처리)
 - Health check 포함
 
-## 문제 해결
-
-### 컨테이너가 시작되지 않을 때
-
-```bash
-# 로그 확인
-docker-compose logs app
-
-# 컨테이너 상태 확인
-docker-compose ps -a
-
-# 수동 실행 (디버깅)
-docker-compose run --rm app sh
-```
-
-### 데이터베이스 마이그레이션 실패
-
-```bash
-# 마이그레이션 상태 확인
-docker-compose exec app npx prisma migrate status
-
-# 마이그레이션 재실행
-docker-compose exec app npx prisma migrate deploy
-
-# 데이터베이스 초기화 (주의: 모든 데이터 삭제)
-docker-compose exec app npx prisma migrate reset
-```
-
-### 포트 충돌
-
-`.env` 파일에서 포트를 변경하거나, `docker-compose.yml`에서 포트 매핑을 수정하세요:
-
-```yaml
-ports:
-  - "7401:7400"  # 호스트:컨테이너
-```
-
-또는 `.env` 파일에서 `PORT` 환경 변수를 변경하세요.
-
-### 디스크 공간 부족
-
-```bash
-# 사용하지 않는 이미지 정리
-docker system prune -a
-
-# 볼륨 확인
-docker volume ls
-```
+---
 
 ## 보안 권장사항
 
 1. **환경 변수**: 민감한 정보는 환경 변수로 관리
 2. **Non-root 사용자**: 컨테이너는 node 사용자로 실행
-3. **네트워크**: 필요한 경우 내부 네트워크만 사용
-4. **업데이트**: 정기적으로 이미지 업데이트
-
-## 프로덕션 배포
-
-### 환경 변수 설정
-
-프로덕션 환경에서는 `.env` 파일을 사용하거나 환경 변수를 직접 설정할 수 있습니다:
-
-```bash
-# .env 파일 사용 (권장)
-PORT=7400
-ADMIN_USERNAME=myadmin
-ADMIN_PASSWORD=secure_password_here
-NODE_ENV=production
-
-# 또는 환경 변수로 직접 설정
-export PORT=7400
-export ADMIN_USERNAME=myadmin
-export ADMIN_PASSWORD=secure_password_here
-export NODE_ENV=production
-docker-compose up -d
-```
-
-**중요**: 프로덕션 환경에서는 반드시 `ADMIN_USERNAME`과 `ADMIN_PASSWORD`를 변경하세요!
-
-### 리버스 프록시 설정 (Nginx 예시)
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    location / {
-        proxy_pass http://localhost:7400;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-## 자동 재시작
-
-`docker-compose.yml`에 `restart: unless-stopped` 설정이 포함되어 있어, 컨테이너가 자동으로 재시작됩니다.
-
-## 모니터링
-
-### Health Check
-
-컨테이너는 Health Check를 통해 상태를 확인합니다:
-
-```bash
-# Health Check 상태 확인
-docker inspect digital-canvas-app | grep -A 10 Health
-```
-
-### 리소스 사용량 확인
-
-```bash
-docker stats digital-canvas-app
-```
+3. **강력한 비밀번호**: 프로덕션에서는 반드시 강력한 비밀번호 사용
+4. **정기 업데이트**: Watchtower로 자동 업데이트 설정
 
 ---
 
-Docker로 간편하게 배포하는 Digital Canvas!
-
+환경에 맞는 배포 방법을 선택하여 Digital Canvas를 실행하세요!
